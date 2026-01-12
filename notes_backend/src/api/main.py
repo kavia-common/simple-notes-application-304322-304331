@@ -22,14 +22,17 @@ def _get_db_path() -> str:
     """
     Resolve the SQLite DB path.
 
-    This app defaults to creating/using a local file `notes.db` next to this service
-    unless NOTES_DB_PATH is set.
+    Per `database/db_connection.txt`, the SQLite DB file path is:
+      /home/kavia/workspace/code-generation/simple-notes-application-304322-304333/database/myapp.db
 
-    NOTE: The provided "database" container initializes its own DB at:
-      simple-notes-application-304322-304333/database/myapp.db
-    If you want to use that same file here, set NOTES_DB_PATH to that absolute path.
+    This service will use that DB by default to ensure the backend and the database container
+    are aligned. You may override this behavior by setting NOTES_DB_PATH.
     """
-    return os.getenv("NOTES_DB_PATH", "notes.db")
+    default_path = (
+        "/home/kavia/workspace/code-generation/"
+        "simple-notes-application-304322-304333/database/myapp.db"
+    )
+    return os.getenv("NOTES_DB_PATH", default_path)
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -106,9 +109,25 @@ app = FastAPI(
     openapi_tags=openapi_tags,
 )
 
-allowed_origins = _parse_allowed_origins(os.getenv("ALLOWED_ORIGINS", ""))
-allow_headers = [h.strip() for h in os.getenv("ALLOWED_HEADERS", "*").split(",")] if os.getenv("ALLOWED_HEADERS") else ["*"]
-allow_methods = [m.strip() for m in os.getenv("ALLOWED_METHODS", "*").split(",")] if os.getenv("ALLOWED_METHODS") else ["*"]
+# Always allow the frontend dev server, per requirement.
+# You can add more origins via ALLOWED_ORIGINS (comma-separated).
+allowed_origins = sorted(
+    {
+        "http://localhost:3000",
+        *_parse_allowed_origins(os.getenv("ALLOWED_ORIGINS", "")),
+    }
+)
+
+allow_headers = (
+    [h.strip() for h in os.getenv("ALLOWED_HEADERS", "*").split(",")]
+    if os.getenv("ALLOWED_HEADERS")
+    else ["*"]
+)
+allow_methods = (
+    [m.strip() for m in os.getenv("ALLOWED_METHODS", "*").split(",")]
+    if os.getenv("ALLOWED_METHODS")
+    else ["*"]
+)
 
 app.add_middleware(
     CORSMiddleware,
